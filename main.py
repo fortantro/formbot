@@ -7,9 +7,10 @@ import requests
 import os
 from telebot import types
 import threading
-from flask import Flask, request, jsonify
-import logging
 
+import logging
+token = os.getenv('BOT_TOKEN')
+bot = telebot.TeleBot(token)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 def register_handlers():
@@ -22,13 +23,12 @@ def register_handlers():
 # Вызываем регистрацию обработчиков
 register_handlers()
 # Инициализация Flask и бота
-app = Flask(__name__)
-token = os.getenv('BOT_TOKEN')
-logger.info(f"Используемый токен: {token[:10]}...")  # Логируем часть токена для проверки
-bot = telebot.TeleBot(token)
+
+
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')
 logger.info(f"WEBHOOK_URL: {WEBHOOK_URL}")
-
+from flask import Flask, request, jsonify
+app = Flask(__name__)
 logger.info("Инициализация бота завершена")
 logger.info(f"Зарегистрированные обработчики: {bot.message_handlers}")
 
