@@ -126,40 +126,6 @@ reg_message = None
 keyboardd = None
 join_buttonn = None
 
-# Webhook endpoint
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.method == 'POST':
-        try:
-            # Логируем входящий запрос
-            print("\n=== Получен запрос ===")
-            print("Headers:", request.headers)
-            print("Body:", request.get_json())
-
-            json_data = request.get_json()
-            if not json_data:
-                print("Ошибка: пустое тело запроса")
-                return jsonify({"error": "Empty request"}), 400
-
-            update = telebot.types.Update.de_json(json_data)
-            if not update:
-                print("Ошибка: не удалось декодировать Update")
-                return jsonify({"error": "Invalid Update"}), 400
-
-            # Логируем тип обновления (сообщение, callback и т.д.)
-            if update.message:
-                print(f"Сообщение от {update.message.from_user.id}: {update.message.text}")
-            elif update.callback_query:
-                print(f"Callback от {update.callback_query.from_user.id}: {update.callback_query.data}")
-
-            bot.process_new_updates([update])
-            return jsonify({"status": "ok"}), 200
-
-        except Exception as e:
-            print("Критическая ошибка:", str(e))
-            return jsonify({"error": str(e)}), 500
-    return 'Method Not Allowed', 405
-
 # Установка вебхука
 def set_webhook():
     try:
