@@ -130,16 +130,33 @@ join_buttonn = None
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.method == 'POST':
-        json_data = request.get_json()
-        if not json_data:
-            return jsonify({"error": "Empty request"}), 400
-        
         try:
+            # Логируем входящий запрос
+            print("\n=== Получен запрос ===")
+            print("Headers:", request.headers)
+            print("Body:", request.get_json())
+
+            json_data = request.get_json()
+            if not json_data:
+                print("Ошибка: пустое тело запроса")
+                return jsonify({"error": "Empty request"}), 400
+
             update = telebot.types.Update.de_json(json_data)
+            if not update:
+                print("Ошибка: не удалось декодировать Update")
+                return jsonify({"error": "Invalid Update"}), 400
+
+            # Логируем тип обновления (сообщение, callback и т.д.)
+            if update.message:
+                print(f"Сообщение от {update.message.from_user.id}: {update.message.text}")
+            elif update.callback_query:
+                print(f"Callback от {update.callback_query.from_user.id}: {update.callback_query.data}")
+
             bot.process_new_updates([update])
             return jsonify({"status": "ok"}), 200
+
         except Exception as e:
-            logger.info("Ошибка обработки:", str(e))
+            print("Критическая ошибка:", str(e))
             return jsonify({"error": str(e)}), 500
     return 'Method Not Allowed', 405
 
@@ -1167,12 +1184,12 @@ def end_day():
         start_night()
 
 @bot.message_handler(commands=['test'])
-def handle_start(message):
+def handle_test(message):
     try:
         print(f"Обработка /test от {message.chat.id}")
-        bot.reply_to(message, "🚀 Бот работает! Отправьте любое сообщение для проверки.")
+        bot.reply_to(message, "✅ Тест пройден! Бот активен.")
     except Exception as e:
-        print("Ошибка в handle_start:", e)
+        print("Ошибка в handle_test:", e)
 
 # Запуск приложения
 set_webhook()
