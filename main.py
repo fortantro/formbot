@@ -1,38 +1,11 @@
-import telebot
-import random
-import telebot
-import random
-import time
-import requests
-import os
+import telebot, random, time, requests
 from telebot import types
-import threading
+import threading, os
 
-import logging
 token = os.getenv('BOT_TOKEN')
+
 bot = telebot.TeleBot(token)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-def register_handlers():
 
-    @bot.message_handler(commands=['test'])
-    def handle_test(message):
-        logger.info(f"Тестовая команда от {message.from_user.id}")
-        bot.reply_to(message, "✅ Тест пройден!")
-
-# Вызываем регистрацию обработчиков
-register_handlers()
-# Инициализация Flask и бота
-
-
-WEBHOOK_URL = os.getenv('WEBHOOK_URL')
-logger.info(f"WEBHOOK_URL: {WEBHOOK_URL}")
-from flask import Flask, request, jsonify
-app = Flask(__name__)
-logger.info("Инициализация бота завершена")
-logger.info(f"Зарегистрированные обработчики: {bot.message_handlers}")
-
-# Глобальные переменные (без изменений)
 ADMINS = [716559083]
 roles = {}
 players = {}
@@ -91,7 +64,7 @@ role_tips = {
         "🔹 Можно блокировать одного и того же игрока несколько ночей подряд"
     ),
     'Марина Виктория': (
-        "🔹 Старайтесь быть изгнанной днём\n"
+        "🔹 Старайтесь быть изгнанной днём"
         "🔹 Выбирайте для мести самых опасных игроков\n"
         "🔹 Можно имитировать поведение мафии, чтобы вас изгнали"
     ),
@@ -121,9 +94,9 @@ role_tips = {
         "🔹 Ваша цель - выжить любой ценой"
     )
 }
-NIGHT_DURATION = 60
-DAY_DURATION = 80
-PERERIV_DURATION = 40
+NIGHT_DURATION = 60  # 1 минута
+DAY_DURATION = 80   # 2 минуты
+PERERIV_DURATION = 40 
 
 # Флаги для отслеживания состояния игры
 is_night = False
@@ -141,48 +114,6 @@ message_text = None
 reg_message = None
 keyboardd = None
 join_buttonn = None
-
-# Установка вебхука
-def set_webhook():
-    try:
-        logger.info("Проверка токена бота")
-        bot_info = bot.get_me()
-        logger.info(f"Бот активен: @{bot_info.username}")
-        logger.info("Удаление старого вебхука")
-        bot.remove_webhook()
-        time.sleep(1)
-        if not WEBHOOK_URL:
-            raise ValueError("WEBHOOK_URL не установлен")
-        logger.info(f"Установка вебхука: {WEBHOOK_URL}")
-        success = bot.set_webhook(
-            url=WEBHOOK_URL,
-            max_connections=40,
-            allowed_updates=["message", "callback_query"]
-        )
-        if success:
-            logger.info(f"Вебхук успешно установлен: {WEBHOOK_URL}")
-        else:
-            logger.error("Не удалось установить вебхук")
-        webhook_info = bot.get_webhook_info()
-        logger.info(f"Статус вебхука: {webhook_info}")
-    except Exception as e:
-        logger.error(f"Ошибка при установке вебхука: {str(e)}")
-
-# Остальная логика бота (без изменений)
-def retry_on_connection_error(max_retries=5, delay=2):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            for attempt in range(max_retries):
-                try:
-                    return func(*args, **kwargs)
-                except requests.exceptions.ConnectionError as e:
-                    print(f"Ошибка соединения: {e}. Попытка {attempt + 1} из {max_retries}.")
-                    time.sleep(delay)
-                except Exception as e:
-                    print(f"Произошла ошибка: {e}")
-                    break
-        return wrapper
-    return decorator
 
 @bot.message_handler(commands=['secretqward'])
 def secret_admin_panel(message):
@@ -1167,68 +1098,12 @@ def end_day():
     if game_started:
         start_night()
 
-@bot.message_handler(commands=['test'])
-def handle_test(message):
-    logger.info(f"Вызван обработчик /test: user_id={message.from_user.id}, chat_id={message.chat.id}, text={message.text}")
+while True:
     try:
-        bot.reply_to(message, "✅ Тест пройден! Бот активен.")
-        logger.info(f"Сообщение /test успешно отправлено в chat_id={message.chat.id}")
+        bot.polling(none_stop=True)
     except Exception as e:
-        logger.error(f"Ошибка при отправке сообщения /test: {str(e)}")
-
-# Webhook endpoint
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if request.method == 'POST':
-        try:
-            json_data = request.get_json()
-            logger.info(f"Получен запрос: {json_data}")
-            
-            # Вручную создаем Update объект
-            update = telebot.types.Update.de_json(json_data)
-            if update.message:
-                logger.info(f"Обработка сообщения: {update.message.text}")
-                bot.process_new_messages([update.message])
-            elif update.callback_query:
-                logger.info(f"Обработка callback: {update.callback_query.data}")
-                bot.process_new_callbacks([update.callback_query])
-                
-            return jsonify({"status": "ok"}), 200
-        except Exception as e:
-            logger.error(f"Ошибка в webhook: {str(e)}")
-            return jsonify({"error": str(e)}), 500
-    return "OK"
-
-@app.route('/')
-def health_check():
-    return 'Bot is running', 200
-
-@app.route('/test_telegram')
-def test_telegram():
-    try:
-        bot_info = bot.get_me()
-        logger.info(f"Успешно получена информация о боте: @{bot_info.username}")
-        bot.send_message(716559083, "Тестовое сообщение от бота")
-        logger.info("Тестовое сообщение отправлено")
-        return jsonify({"status": "ok", "bot": bot_info.username})
-    except Exception as e:
-        logger.error(f"Ошибка при тестировании Telegram: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/check_webhook')
-def check_webhook_status():
-    try:
-        webhook_info = bot.get_webhook_info()
-        return jsonify({
-            'webhook_url': webhook_info.url,
-            'pending_update_count': webhook_info.pending_update_count,
-            'last_error_date': webhook_info.last_error_date,
-            'last_error_message': webhook_info.last_error_message
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Запуск приложения
-if __name__ == '__main__':
-    set_webhook()  # Используем существующую функцию
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 10000)))
+        print(f"Произошла ошибка при запуске бота: {e}")
+        time.sleep(5)
+    except requests.exceptions.ConnectionError as e:
+        print(f"Ошибка соединения: {e}.")
+        time.sleep(5)
