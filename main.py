@@ -1,5 +1,7 @@
 import telebot
 import random
+import telebot
+import random
 import time
 import requests
 import os
@@ -8,14 +10,16 @@ import threading
 from flask import Flask, request, jsonify
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Инициализация Flask и бота
 app = Flask(__name__)
 token = os.getenv('BOT_TOKEN')
+logger.info(f"Используемый токен: {token[:10]}...")  # Логируем часть токена для проверки
 bot = telebot.TeleBot(token)
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')
+logger.info(f"WEBHOOK_URL: {WEBHOOK_URL}")
 
 logger.info("Инициализация бота завершена")
 logger.info(f"Зарегистрированные обработчики: {bot.message_handlers}")
@@ -1183,8 +1187,11 @@ def webhook():
         elif update.callback_query:
             logger.info(f"Callback: {update.callback_query.data} от user_id={update.callback_query.from_user.id}")
         logger.info("Передача обновления в bot.process_new_updates")
-        bot.process_new_updates([update])
-        logger.info("Обновление успешно обработано")
+        try:
+            bot.process_new_updates([update])
+            logger.info("Обновление успешно обработано")
+        except Exception as e:
+            logger.error(f"Ошибка в bot.process_new_updates: {str(e)}")
         return jsonify({"status": "ok"}), 200
     except Exception as e:
         logger.error(f"Критическая ошибка в вебхуке: {str(e)}")
