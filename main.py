@@ -12,7 +12,15 @@ import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+def register_handlers():
 
+    @bot.message_handler(commands=['test'])
+    def handle_test(message):
+        logger.info(f"Тестовая команда от {message.from_user.id}")
+        bot.reply_to(message, "✅ Тест пройден!")
+
+# Вызываем регистрацию обработчиков
+register_handlers()
 # Инициализация Flask и бота
 app = Flask(__name__)
 token = os.getenv('BOT_TOKEN')
@@ -1171,31 +1179,25 @@ def handle_test(message):
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    try:
-        logger.info("Получен входящий запрос на вебхук")
-        json_data = request.get_json()
-        if not json_data:
-            logger.error("Пустое тело запроса")
-            return jsonify({"error": "Empty request"}), 400
-        update = telebot.types.Update.de_json(json_data)
-        if not update:
-            logger.error("Не удалось декодировать Update")
-            return jsonify({"error": "Invalid Update"}), 400
-        logger.info(f"Обработка обновления: {json_data}")
-        if update.message:
-            logger.info(f"Сообщение: {update.message.text} от user_id={update.message.from_user.id}")
-        elif update.callback_query:
-            logger.info(f"Callback: {update.callback_query.data} от user_id={update.callback_query.from_user.id}")
-        logger.info("Передача обновления в bot.process_new_updates")
+    if request.method == 'POST':
         try:
-            bot.process_new_updates([update])
-            logger.info("Обновление успешно обработано")
+            json_data = request.get_json()
+            logger.info(f"Получен запрос: {json_data}")
+            
+            # Вручную создаем Update объект
+            update = telebot.types.Update.de_json(json_data)
+            if update.message:
+                logger.info(f"Обработка сообщения: {update.message.text}")
+                bot.process_new_messages([update.message])
+            elif update.callback_query:
+                logger.info(f"Обработка callback: {update.callback_query.data}")
+                bot.process_new_callbacks([update.callback_query])
+                
+            return jsonify({"status": "ok"}), 200
         except Exception as e:
-            logger.error(f"Ошибка в bot.process_new_updates: {str(e)}")
-        return jsonify({"status": "ok"}), 200
-    except Exception as e:
-        logger.error(f"Критическая ошибка в вебхуке: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+            logger.error(f"Ошибка в webhook: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+    return "OK"
 
 @app.route('/')
 def health_check():
