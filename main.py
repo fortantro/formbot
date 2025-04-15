@@ -1222,7 +1222,5 @@ def setup_webhook():
         print("⚠️ Критическая ошибка:", str(e))
 
 if __name__ == '__main__':
-    print("=== Запуск бота ===")
-    set_webhook()  # Убедитесь, что вебхук установлен
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    bot.remove_webhook()
+    bot.polling(none_stop=True)
