@@ -1185,42 +1185,52 @@ def end_day():
 
 @bot.message_handler(commands=['test'])
 def handle_test(message):
+    logger.info(f"Обработка /test от {message.from_user.id} в чате {message.chat.id}")
     try:
-        print(f"Обработка /test от {message.chat.id}")
         bot.reply_to(message, "✅ Тест пройден! Бот активен.")
+        logger.info("Сообщение /test успешно отправлено")
     except Exception as e:
-        print("Ошибка в handle_test:", e)
+        logger.error(f"Ошибка отправки сообщения /test: {str(e)}")
 
-# Запуск приложения
-set_webhook()
+# Webhook endpoint
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    try:
+        json_data = request.get_json()
+        if not json_data:
+            logger.error("Пустое тело запроса")
+            return jsonify({"error": "Empty request"}), 400
+
+        update = telebot.types.Update.de_json(json_data)
+        if not update:
+            logger.error("Не удалось декодировать Update")
+            return jsonify({"error": "Invalid Update"}), 400
+
+        logger.info(f"Обработка обновления: {json_data}")
+        bot.process_new_updates([update])
+        return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        logger.error(f"Критическая ошибка в вебхуке: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/')
 def health_check():
     return 'Bot is running', 200
 
-def setup_webhook():
+@app.route('/check_webhook')
+def check_webhook_status():
     try:
-        bot.remove_webhook()
-        time.sleep(1)
-        
-        # Проверка URL вебхука
-        if not WEBHOOK_URL.startswith('https'):
-            raise ValueError("Webhook URL должен использовать HTTPS")
-            
-        success = bot.set_webhook(
-            url=WEBHOOK_URL,
-            max_connections=50,
-            allowed_updates=["message", "callback_query"]
-        )
-        
-        if success:
-            print(f"✅ Вебхук установлен: {WEBHOOK_URL}")
-            print("Проверка вебхука:", bot.get_webhook_info())
-        else:
-            print("❌ Ошибка установки вебхука")
+        webhook_info = bot.get_webhook_info()
+        return jsonify({
+            'webhook_url': webhook_info.url,
+            'pending_update_count': webhook_info.pending_update_count,
+            'last_error_date': webhook_info.last_error_date,
+            'last_error_message': webhook_info.last_error_message
+        })
     except Exception as e:
-        print("⚠️ Критическая ошибка:", str(e))
+        return jsonify({'error': str(e)}), 500
 
+# Запуск приложения
 if __name__ == '__main__':
-    bot.remove_webhook()
-    bot.polling(none_stop=True)
+    set_webhook()  # Используем существующую функцию
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 10000)))
