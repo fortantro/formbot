@@ -5,7 +5,7 @@ import requests
 import os
 from telebot import types
 import threading
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 # Инициализация Flask и бота
 app = Flask(__name__)
@@ -126,16 +126,45 @@ join_buttonn = None
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    update = telebot.types.Update.de_json(request.get_json())
-    bot.process_new_updates([update])
-    return '', 200
+    if request.method == 'POST':
+        # 1. Проверяем наличие данных
+        if not request.json:
+            print("Empty request received")
+            return 'Bad Request', 400
+        
+        # 2. Обработка обновления с try-except
+        try:
+            update = telebot.types.Update.de_json(request.get_json())
+            bot.process_new_updates([update])
+            return 'OK', 200
+        except Exception as e:
+            print(f"Error processing update: {str(e)}")
+            return 'Internal Server Error', 500
+    return 'Method Not Allowed', 405
 
 # Установка вебхука
 def set_webhook():
-    bot.remove_webhook()
-    time.sleep(1)
-    bot.set_webhook(url=WEBHOOK_URL)
-    print(f"Webhook установлен: {WEBHOOK_URL}")
+    try:
+        bot.remove_webhook()
+        time.sleep(1)
+        
+        # Добавляем проверку URL
+        if not WEBHOOK_URL:
+            raise ValueError("WEBHOOK_URL не установлен")
+            
+        success = bot.set_webhook(
+            url=WEBHOOK_URL,
+            # Дополнительные параметры для надежности:
+            max_connections=40,
+            allowed_updates=["message", "callback_query"]
+        )
+        
+        if success:
+            print(f" Вебхук успешно установлен: {WEBHOOK_URL}")
+        else:
+            print(" Не удалось установить вебхук")
+    except Exception as e:
+        print(f" Ошибка при установке вебхука: {str(e)}")
 
 # Остальная логика бота (без изменений)
 def retry_on_connection_error(max_retries=5, delay=2):
@@ -1136,9 +1165,24 @@ def end_day():
     if game_started:
         start_night()
 
+@bot.message_handler(commands=['test'])
+def send_welcome(message):
+    bot.reply_to(message, "Бот работает корректно!")
+
 # Запуск приложения
 set_webhook()
 
 @app.route('/')
 def health_check():
     return 'Bot is running', 200
+
+if __name__ == '__main__':
+    # Настройка вебхука
+    bot.remove_webhook()
+    time.sleep(1)
+    webhook_url = f"https://formbot-wnct.onrender.com/webhook"
+    bot.set_webhook(url=webhook_url)
+    
+    # Запуск сервера
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
