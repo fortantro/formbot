@@ -129,26 +129,28 @@ join_buttonn = None
 # Установка вебхука
 def set_webhook():
     try:
+        logger.info("Проверка токена бота")
+        bot_info = bot.get_me()
+        logger.info(f"Бот активен: @{bot_info.username}")
+        logger.info("Удаление старого вебхука")
         bot.remove_webhook()
         time.sleep(1)
-        
-        # Добавляем проверку URL
         if not WEBHOOK_URL:
             raise ValueError("WEBHOOK_URL не установлен")
-            
+        logger.info(f"Установка вебхука: {WEBHOOK_URL}")
         success = bot.set_webhook(
             url=WEBHOOK_URL,
-            # Дополнительные параметры для надежности:
             max_connections=40,
             allowed_updates=["message", "callback_query"]
         )
-        
         if success:
-            print(f" Вебхук успешно установлен: {WEBHOOK_URL}")
+            logger.info(f"Вебхук успешно установлен: {WEBHOOK_URL}")
         else:
-            print(" Не удалось установить вебхук")
+            logger.error("Не удалось установить вебхук")
+        webhook_info = bot.get_webhook_info()
+        logger.info(f"Статус вебхука: {webhook_info}")
     except Exception as e:
-        print(f" Ошибка при установке вебхука: {str(e)}")
+        logger.error(f"Ошибка при установке вебхука: {str(e)}")
 
 # Остальная логика бота (без изменений)
 def retry_on_connection_error(max_retries=5, delay=2):
@@ -1151,29 +1153,33 @@ def end_day():
 
 @bot.message_handler(commands=['test'])
 def handle_test(message):
-    logger.info(f"Обработка /test от {message.from_user.id} в чате {message.chat.id}")
+    logger.info(f"Получена команда /test от user_id={message.from_user.id}, chat_id={message.chat.id}")
     try:
         bot.reply_to(message, "✅ Тест пройден! Бот активен.")
-        logger.info("Сообщение /test успешно отправлено")
+        logger.info(f"Сообщение /test успешно отправлено в chat_id={message.chat.id}")
     except Exception as e:
-        logger.error(f"Ошибка отправки сообщения /test: {str(e)}")
+        logger.error(f"Ошибка при отправке сообщения /test: {str(e)}")
 
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
+        logger.info("Получен входящий запрос на вебхук")
         json_data = request.get_json()
         if not json_data:
             logger.error("Пустое тело запроса")
             return jsonify({"error": "Empty request"}), 400
-
         update = telebot.types.Update.de_json(json_data)
         if not update:
             logger.error("Не удалось декодировать Update")
             return jsonify({"error": "Invalid Update"}), 400
-
         logger.info(f"Обработка обновления: {json_data}")
+        if update.message:
+            logger.info(f"Сообщение: {update.message.text} от user_id={update.message.from_user.id}")
+        elif update.callback_query:
+            logger.info(f"Callback: {update.callback_query.data} от user_id={update.callback_query.from_user.id}")
         bot.process_new_updates([update])
+        logger.info("Обновление успешно обработано")
         return jsonify({"status": "ok"}), 200
     except Exception as e:
         logger.error(f"Критическая ошибка в вебхуке: {str(e)}")
@@ -1182,6 +1188,18 @@ def webhook():
 @app.route('/')
 def health_check():
     return 'Bot is running', 200
+
+@app.route('/test_telegram')
+def test_telegram():
+    try:
+        bot_info = bot.get_me()
+        logger.info(f"Успешно получена информация о боте: @{bot_info.username}")
+        bot.send_message(716559083, "Тестовое сообщение от бота")
+        logger.info("Тестовое сообщение отправлено")
+        return jsonify({"status": "ok", "bot": bot_info.username})
+    except Exception as e:
+        logger.error(f"Ошибка при тестировании Telegram: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/check_webhook')
 def check_webhook_status():
