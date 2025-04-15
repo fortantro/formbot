@@ -7,6 +7,7 @@ from telebot import types
 import threading
 from flask import Flask, request, jsonify
 import logging
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,10 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 token = os.getenv('BOT_TOKEN')
 bot = telebot.TeleBot(token)
-WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # Будет задано в Railway
+WEBHOOK_URL = os.getenv('WEBHOOK_URL')
+
+logger.info("Инициализация бота завершена")
+logger.info(f"Зарегистрированные обработчики: {bot.message_handlers}")
 
 # Глобальные переменные (без изменений)
 ADMINS = [716559083]
@@ -1153,7 +1157,7 @@ def end_day():
 
 @bot.message_handler(commands=['test'])
 def handle_test(message):
-    logger.info(f"Получена команда /test от user_id={message.from_user.id}, chat_id={message.chat.id}")
+    logger.info(f"Вызван обработчик /test: user_id={message.from_user.id}, chat_id={message.chat.id}, text={message.text}")
     try:
         bot.reply_to(message, "✅ Тест пройден! Бот активен.")
         logger.info(f"Сообщение /test успешно отправлено в chat_id={message.chat.id}")
@@ -1178,6 +1182,7 @@ def webhook():
             logger.info(f"Сообщение: {update.message.text} от user_id={update.message.from_user.id}")
         elif update.callback_query:
             logger.info(f"Callback: {update.callback_query.data} от user_id={update.callback_query.from_user.id}")
+        logger.info("Передача обновления в bot.process_new_updates")
         bot.process_new_updates([update])
         logger.info("Обновление успешно обработано")
         return jsonify({"status": "ok"}), 200
