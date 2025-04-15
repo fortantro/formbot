@@ -6,6 +6,9 @@ import os
 from telebot import types
 import threading
 from flask import Flask, request, jsonify
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Инициализация Flask и бота
 app = Flask(__name__)
@@ -127,19 +130,16 @@ join_buttonn = None
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.method == 'POST':
+        json_data = request.get_json()
+        if not json_data:
+            return jsonify({"error": "Empty request"}), 400
+        
         try:
-            # Логируем входящий запрос
-            print("Получен запрос:", request.json)
-            
-            update = telebot.types.Update.de_json(request.get_json())
-            if update.message:
-                print(f"Получено сообщение от {update.message.from_user.id}: {update.message.text}")
-            
+            update = telebot.types.Update.de_json(json_data)
             bot.process_new_updates([update])
             return jsonify({"status": "ok"}), 200
-            
         except Exception as e:
-            print("Ошибка обработки:", str(e))
+            logger.info("Ошибка обработки:", str(e))
             return jsonify({"error": str(e)}), 500
     return 'Method Not Allowed', 405
 
@@ -1205,7 +1205,7 @@ def setup_webhook():
         print("⚠️ Критическая ошибка:", str(e))
 
 if __name__ == '__main__':
-    print("=== Инициализация бота ===")
-    setup_webhook()
+    print("=== Запуск бота ===")
+    set_webhook()  # Убедитесь, что вебхук установлен
     port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=False)
