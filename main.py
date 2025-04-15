@@ -1137,7 +1137,8 @@ def end_day():
         start_night()
 
 # Запуск приложения
-if __name__ == '__main__':
-    set_webhook()
-    port = int(os.getenv('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
+set_webhook()
+
+@app.route('/')
+def health_check():
+    return 'Bot is running', 200
